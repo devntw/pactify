@@ -1,0 +1,115 @@
+services:
+  layer1:
+    image: ${LAYER1_IMAGE:-gawah-layer1:v1}
+    build:
+      context: ./layer1
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      layer2:
+        condition: service_healthy
+    environment:
+      LAYER2_URL: http://layer2:8001/process
+      LAYER2_CONFIRM_URL: http://layer2:8001/confirm
+      LAYER4_GENERATE_URL: http://layer4:8003/generate-proof
+      LAYER4_FILE_URL: http://layer4:8003/proof-file
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-}
+    networks:
+      - gawah-net
+
+  layer2:
+    image: ${LAYER2_IMAGE:-gawah-layer2:v1}
+    build:
+      context: ./layer2
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    depends_on:
+      layer3:
+        condition: service_healthy
+    environment:
+      # LM Studio (Mac, Layer 2 in Docker): OPENAI_BASE_URL=http://host.docker.internal:1234/v1 OPENAI_API_KEY=lm-studio
+      # OPENAI_MODEL must match the model id shown in LM Studio. Set LLM_JSON_RESPONSE_FORMAT=false if the server errors on json mode.
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      LLM_JSON_RESPONSE_FORMAT: ${LLM_JSON_RESPONSE_FORMAT:-true}
+      # Layer 3 sink endpoint. Override for external system if needed.
+      LAYER3_URL: ${LAYER3_URL:-http://layer3:8002/ingest}
+      LAYER3_TIMEOUT_SECONDS: ${LAYER3_TIMEOUT_SECONDS:-10}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    networks:
+      - gawah-net
+
+  layer3:
+    image: ${LAYER3_IMAGE:-gawah-layer3:v1}
+    build:
+      context: ./layer3
+      dockerfile: Dockerfile
+    ports:
+      - "8002:8002"
+    depends_on:
+      layer4:
+        condition: service_healthy
+    environment:
+      LAYER4_URL: ${LAYER4_URL:-http://layer4:8003/generate-proof}
+      LAYER4_TIMEOUT_SECONDS: ${LAYER4_TIMEOUT_SECONDS:-10}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - gawah-net
+
+  layer4:
+    image: ${LAYER4_IMAGE:-gawah-layer4:v1}
+    build:
+      context: ./layer4
+      dockerfile: Dockerfile
+    depends_on:
+      layer5:
+        condition: service_healthy
+    environment:
+      LAYER5_URL: ${LAYER5_URL:-http://layer5:8004/register_contract}
+      LAYER5_TIMEOUT_SECONDS: ${LAYER5_TIMEOUT_SECONDS:-10}
+    ports:
+      - "8003:8003"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - gawah-net
+
+  layer5:
+    image: ${LAYER5_IMAGE:-gawah-layer5:v1}
+    build:
+      context: ./layer5
+      dockerfile: Dockerfile
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health', timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    networks:
+      - gawah-net
+
+networks:
+  gawah-net:
+    name: gawah-net

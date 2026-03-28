@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+
+# Environment and secrets
+.env
+*.env
+
+# OS/editor
+.DS_Store
+.vscode/
+
+# Runtime artifacts
+*.log
+/tmp/
+*.sqlite3
+*.db
+
+# Build/cache
+.pytest_cache/
+.mypy_cache/

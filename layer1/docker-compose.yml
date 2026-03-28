@@ -1,0 +1,12 @@
+services:
+  layer1:
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      - layer2
+
+  layer2:
+    build: ../layer2
+    ports:
+      - "8001:8001"
